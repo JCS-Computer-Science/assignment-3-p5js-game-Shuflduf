@@ -1,0 +1,31 @@
+@font-face {
+  src: url(NikkyouSans-B6aV.ttf);
+  font-family: NikkYou;
+}
+
+html {
+  background-color: black;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  display: flex;
+  height: 100dvh;
+  justify-content: center;
+  align-items: center;
+}
+
+canvas {
+  margin: auto;
+  /* height: 100vh; */
+}
+
+.controls {
+  font-family: NikkYou;
+  position: fixed;
+  left: 0;
+  color: white;
+}
