@@ -323,7 +323,7 @@ function safePlace(x, y) {
 function drawNext() {
   for (let i = 0; i < next.length; i++) {
     const nextPieceDisplay = new StaticTetromino(next[i], [
-      12 + NEXT_DISPLAY_POS_BASE[0],
+      NEXT_DISPLAY_POS_BASE[0],
       i * 4 + NEXT_DISPLAY_POS_BASE[1],
     ]);
     nextPieceDisplay.draw();
