@@ -15,6 +15,8 @@ const TILE_SIZE = CANVAS_SIZE / (HEIGHT + 1);
 const HORIZ_OFFSET = ((WIDTH + 1) * TILE_SIZE) / 2;
 const GRAVITY_TIME = 300;
 const NEXT_PIECES = 1;
+const DAS = 168;
+const ARR = 33;
 
 const HELD_DISPLAY_POS = [-5, 0];
 const NEXT_DISPLAY_POS_BASE = [12, 0];
@@ -50,6 +52,16 @@ class Tetromino {
 class MoveableTetromino extends Tetromino {
   constructor(index) {
     super(index, [3, 0]);
+    this.rawInputs = {
+      left: false,
+      right: false,
+      softDrop: false,
+    };
+    this.effectiveInputs = {
+      left: false,
+      right: false,
+    };
+    this.arrTimer = 0;
   }
 
   move(dx, dy) {
@@ -59,6 +71,13 @@ class MoveableTetromino extends Tetromino {
 
   rotate(newRot) {
     this.rot = newRot;
+  }
+
+  draw() {
+    fill(color(this.getColor()));
+    for (const pos of this.getShape()) {
+      tileAt(this.pos[0] + pos[0], this.pos[1] + pos[1]);
+    }
   }
 
   drawGhost() {
@@ -143,6 +162,62 @@ class MoveableTetromino extends Tetromino {
     }
     return false;
   }
+
+  handleKeyDown(direction) {
+    if (direction === "left") {
+      this.tryMove(-1, 0);
+      this.arrTimer = 0;
+      this.rawInputs.left = true;
+      this.effectiveInputs.left = true;
+      this.effectiveInputs.right = false;
+    } else if (direction === "right") {
+      this.tryMove(1, 0);
+      this.arrTimer = 0;
+      this.rawInputs.right = true;
+      this.effectiveInputs.right = true;
+      this.effectiveInputs.left = false;
+    } else if (direction === "softDrop") {
+      this.tryMove(0, 1);
+      this.rawInputs.softDrop = true;
+    }
+  }
+
+  handleKeyUp(direction) {
+    if (direction === "left") {
+      this.rawInputs.left = false;
+      this.effectiveInputs.left = false;
+      if (this.rawInputs.right) {
+        this.tryMove(1, 0);
+        this.effectiveInputs.right = true;
+        this.arrTimer = 0;
+      }
+    } else if (direction === "right") {
+      this.rawInputs.right = false;
+      this.effectiveInputs.right = false;
+      if (this.rawInputs.left) {
+        this.tryMove(-1, 0);
+        this.effectiveInputs.left = true;
+        this.arrTimer = 0;
+      }
+    } else if (direction === "softDrop") {
+      this.rawInputs.softDrop = false;
+    }
+  }
+
+  updateMovement(delta) {
+    if (this.effectiveInputs.left || this.effectiveInputs.right) {
+      this.arrTimer += delta;
+    }
+
+    if (this.arrTimer > DAS + ARR) {
+      if (this.effectiveInputs.left) {
+        this.tryMove(-1, 0);
+      } else if (this.effectiveInputs.right) {
+        this.tryMove(1, 0);
+      }
+      this.arrTimer = DAS;
+    }
+  }
 }
 
 class StaticTetromino extends Tetromino {
@@ -186,9 +261,10 @@ function drawBoard() {
 }
 
 function setup() {
-  // noStroke();
+  noStroke();
   createCanvas(CANVAS_SIZE, CANVAS_SIZE);
   resetGame();
+  document.addEventListener("keyup", keyUp);
 }
 
 function placePiece() {
@@ -255,6 +331,7 @@ function draw() {
     }
     gravityTime = 0;
   }
+  currentPiece.updateMovement(deltaTime);
   currentPiece.drawGhost();
   currentPiece.draw();
   drawNext();
@@ -264,13 +341,13 @@ function draw() {
 function keyPressed(event) {
   switch (event.code) {
     case "KeyA":
-      currentPiece.tryMove(-1, 0);
+      currentPiece.handleKeyDown("left");
       break;
     case "KeyD":
-      currentPiece.tryMove(1, 0);
+      currentPiece.handleKeyDown("right");
       break;
     case "KeyW":
-      currentPiece.tryMove(0, 1);
+      currentPiece.handleKeyDown("softDrop");
       break;
     case "KeyS":
       while (currentPiece.tryMove(0, 1)) {}
@@ -286,7 +363,21 @@ function keyPressed(event) {
       hold();
       break;
   }
-  console.log(event);
+}
+
+function keyUp(event) {
+  console.log(event.code);
+  switch (event.code) {
+    case "KeyA":
+      currentPiece.handleKeyUp("left");
+      break;
+    case "KeyD":
+      currentPiece.handleKeyUp("right");
+      break;
+    case "KeyW":
+      currentPiece.handleKeyUp("softDrop");
+      break;
+  }
 }
 
 function clearLines() {
