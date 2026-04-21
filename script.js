@@ -170,18 +170,10 @@ function drawBoard() {
   }
 }
 
-function drawGhost() {
-  currentPiece.drawGhost();
-}
-
 function setup() {
   // noStroke();
   createCanvas(CANVAS_SIZE, CANVAS_SIZE);
   resetGame();
-}
-
-function drawCurrentPiece() {
-  currentPiece.draw();
 }
 
 function placePiece() {
@@ -242,14 +234,14 @@ function draw() {
   drawBoard();
   gravityTime += deltaTime;
   if (gravityTime > GRAVITY_TIME) {
-    let moved = currentPiece.tryMove(0, 1);
+    const moved = currentPiece.tryMove(0, 1);
     if (!moved) {
       placePiece();
     }
     gravityTime = 0;
   }
-  drawGhost();
-  drawCurrentPiece();
+  currentPiece.drawGhost();
+  currentPiece.draw();
   drawNext();
   drawHeld();
 }
@@ -285,18 +277,17 @@ function keyPressed(event) {
 function clearLines() {
   const linesToClear = fullLines();
 
-  let removed = 0;
   for (const line of linesToClear) {
     for (let y = line; y >= 0; y--) {
       for (let x = 0; x < WIDTH; x++) {
-        board[x][y + removed] = board[x][y - 1 + removed];
+        board[x][y] = board[x][y - 1];
       }
     }
   }
 }
 
 function fullLines() {
-  let full = [];
+  const full = [];
   outer: for (let y = 0; y < HEIGHT; y++) {
     for (let x = 0; x < WIDTH; x++) {
       if (board[x][y] == null) continue outer;
@@ -327,7 +318,7 @@ function drawNext() {
 function hold() {
   if (justHeld) return;
   if (held != null) {
-    let t = currentPiece.index;
+    const t = currentPiece.index;
     currentPiece = new Tetromino(held);
     held = t;
   } else {
