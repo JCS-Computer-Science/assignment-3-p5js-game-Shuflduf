@@ -16,6 +16,126 @@ const HORIZ_OFFSET = ((WIDTH + 1) * TILE_SIZE) / 2;
 const GRAVITY_TIME = 300;
 const NEXT_PIECES = 1;
 
+class Tetromino {
+  constructor(index) {
+    this.index = index;
+    this.pos = [3, 0];
+    this.rot = 0;
+  }
+
+  getColor() {
+    return COLOURS[this.index];
+  }
+
+  getShape() {
+    return SRS.pieces[this.index][this.rot];
+  }
+
+  move(dx, dy) {
+    this.pos[0] += dx;
+    this.pos[1] += dy;
+  }
+
+  rotate(newRot) {
+    this.rot = newRot;
+  }
+
+  reset() {
+    this.pos = [3, 0];
+    this.rot = 0;
+  }
+
+  draw() {
+    fill(color(this.getColor()));
+    for (const pos of this.getShape()) {
+      tileAt(this.pos[0] + pos[0], this.pos[1] + pos[1]);
+    }
+  }
+
+  drawGhost() {
+    let depth = 0;
+    outer: for (let i = 0; i < HEIGHT; i++) {
+      for (const pos of this.getShape()) {
+        const testPos = [
+          this.pos[0] + pos[0],
+          this.pos[1] + pos[1] + i,
+        ];
+        if (!safePlace(testPos[0], testPos[1])) {
+          depth = i - 1;
+          break outer;
+        }
+      }
+    }
+    fill(color(20));
+    for (const pos of this.getShape()) {
+      const blockPos = [
+        this.pos[0] + pos[0],
+        this.pos[1] + pos[1] + depth,
+      ];
+      tileAt(blockPos[0], blockPos[1]);
+    }
+  }
+
+  canMove(dx, dy) {
+    for (const pos of this.getShape()) {
+      const testPos = [
+        this.pos[0] + pos[0] + dx,
+        this.pos[1] + pos[1] + dy,
+      ];
+      if (!safePlace(testPos[0], testPos[1])) return false;
+    }
+    return true;
+  }
+
+  tryMove(dx, dy) {
+    if (this.canMove(dx, dy)) {
+      this.move(dx, dy);
+      return true;
+    }
+    return false;
+  }
+
+  canRotate(newRot) {
+    for (const pos of SRS.pieces[this.index][newRot]) {
+      const testPos = [
+        this.pos[0] + pos[0],
+        this.pos[1] + pos[1],
+      ];
+      if (!safePlace(testPos[0], testPos[1])) return false;
+    }
+    return true;
+  }
+
+  tryRotate(newRot) {
+    if (this.canRotate(newRot)) {
+      this.rotate(newRot);
+      return true;
+    }
+    return false;
+  }
+
+  place() {
+    for (const pos of this.getShape()) {
+      const blockPos = [
+        this.pos[0] + pos[0],
+        this.pos[1] + pos[1],
+      ];
+      board[blockPos[0]][blockPos[1]] = this.index;
+    }
+  }
+
+  isColliding() {
+    for (const pos of this.getShape()) {
+      const blockPos = [
+        this.pos[0] + pos[0],
+        this.pos[1] + pos[1],
+      ];
+      if (!safePlace(blockPos[0], blockPos[1])) return true;
+    }
+    return false;
+  }
+}
+
 let gravityTime = 0;
 
 let currentPiece;
@@ -51,27 +171,7 @@ function drawBoard() {
 }
 
 function drawGhost() {
-  let depth = 0;
-  outer: for (let i = 0; i < HEIGHT; i++) {
-    for (const pos of SRS.pieces[currentPiece.index][currentPiece.rot]) {
-      const testPos = [
-        currentPiece.pos[0] + pos[0],
-        currentPiece.pos[1] + pos[1] + i,
-      ];
-      if (!safePlace(testPos[0], testPos[1])) {
-        depth = i - 1;
-        break outer;
-      }
-    }
-  }
-  fill(color(20));
-  for (const pos of SRS.pieces[currentPiece.index][currentPiece.rot]) {
-    const blockPos = [
-      currentPiece.pos[0] + pos[0],
-      currentPiece.pos[1] + pos[1] + depth,
-    ];
-    tileAt(blockPos[0], blockPos[1]);
-  }
+  currentPiece.drawGhost();
 }
 
 function setup() {
@@ -81,28 +181,15 @@ function setup() {
 }
 
 function drawCurrentPiece() {
-  fill(color(COLOURS[currentPiece.index]));
-  for (const pos of SRS.pieces[currentPiece.index][currentPiece.rot]) {
-    tileAt(currentPiece.pos[0] + pos[0], currentPiece.pos[1] + pos[1]);
-  }
+  currentPiece.draw();
 }
 
 function placePiece() {
-  for (const pos of SRS.pieces[currentPiece.index][currentPiece.rot]) {
-    const blockPos = [
-      currentPiece.pos[0] + pos[0],
-      currentPiece.pos[1] + pos[1],
-    ];
-    board[blockPos[0]][blockPos[1]] = currentPiece.index;
-  }
+  currentPiece.place();
   currentPiece = nextPiece();
   clearLines();
-  for (const pos of SRS.pieces[currentPiece.index][currentPiece.rot]) {
-    const blockPos = [
-      currentPiece.pos[0] + pos[0],
-      currentPiece.pos[1] + pos[1],
-    ];
-    if (!safePlace(blockPos[0], blockPos[1])) resetGame();
+  if (currentPiece.isColliding()) {
+    resetGame();
   }
   gravityTime = 0;
   justHeld = false;
@@ -122,11 +209,7 @@ function resetGame() {
 
 function nextPiece() {
   next.push(nextBagIndex());
-  return {
-    index: next.shift(),
-    pos: [3, 0],
-    rot: 0,
-  };
+  return new Tetromino(next.shift());
 }
 
 function nextBagIndex() {
@@ -159,7 +242,7 @@ function draw() {
   drawBoard();
   gravityTime += deltaTime;
   if (gravityTime > GRAVITY_TIME) {
-    let moved = tryMove(0, 1);
+    let moved = currentPiece.tryMove(0, 1);
     if (!moved) {
       placePiece();
     }
@@ -174,42 +257,29 @@ function draw() {
 function keyPressed(event) {
   switch (event.code) {
     case "KeyA":
-      tryMove(-1, 0);
+      currentPiece.tryMove(-1, 0);
       break;
     case "KeyD":
-      tryMove(1, 0);
+      currentPiece.tryMove(1, 0);
       break;
     case "KeyW":
-      tryMove(0, 1);
+      currentPiece.tryMove(0, 1);
       break;
     case "KeyS":
-      while (tryMove(0, 1)) {}
+      while (currentPiece.tryMove(0, 1)) {}
       placePiece();
       break;
     case "ArrowLeft":
-      tryRotate((currentPiece.rot + 3) % 4);
+      currentPiece.tryRotate((currentPiece.rot + 3) % 4);
       break;
     case "ArrowRight":
-      tryRotate((currentPiece.rot + 1) % 4);
+      currentPiece.tryRotate((currentPiece.rot + 1) % 4);
       break;
     case "ShiftLeft":
       hold();
       break;
   }
   console.log(event);
-}
-
-function tryMove(dx, dy) {
-  for (const pos of SRS.pieces[currentPiece.index][currentPiece.rot]) {
-    const testPos = [
-      currentPiece.pos[0] + pos[0] + dx,
-      currentPiece.pos[1] + pos[1] + dy,
-    ];
-    if (!safePlace(testPos[0], testPos[1])) return false;
-  }
-  currentPiece.pos[0] += dx;
-  currentPiece.pos[1] += dy;
-  return true;
 }
 
 function clearLines() {
@@ -223,18 +293,6 @@ function clearLines() {
       }
     }
   }
-}
-
-function tryRotate(newRot) {
-  for (const pos of SRS.pieces[currentPiece.index][newRot]) {
-    const testPos = [
-      currentPiece.pos[0] + pos[0],
-      currentPiece.pos[1] + pos[1],
-    ];
-    if (!safePlace(testPos[0], testPos[1])) return false;
-  }
-  currentPiece.rot = newRot;
-  return true;
 }
 
 function fullLines() {
@@ -270,11 +328,7 @@ function hold() {
   if (justHeld) return;
   if (held != null) {
     let t = currentPiece.index;
-    currentPiece = {
-      index: held,
-      pos: [3, 0],
-      rot: 0,
-    };
+    currentPiece = new Tetromino(held);
     held = t;
   } else {
     held = currentPiece.index;
