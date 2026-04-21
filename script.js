@@ -16,10 +16,13 @@ const HORIZ_OFFSET = ((WIDTH + 1) * TILE_SIZE) / 2;
 const GRAVITY_TIME = 300;
 const NEXT_PIECES = 1;
 
+const HELD_DISPLAY_POS = [-5, 0];
+const NEXT_DISPLAY_POS_BASE = [12, 0];
+
 class Tetromino {
-  constructor(index) {
+  constructor(index, pos) {
     this.index = index;
-    this.pos = [3, 0];
+    this.pos = pos;
     this.rot = 0;
   }
 
@@ -29,15 +32,6 @@ class Tetromino {
 
   getShape() {
     return SRS.pieces[this.index][this.rot];
-  }
-
-  move(dx, dy) {
-    this.pos[0] += dx;
-    this.pos[1] += dy;
-  }
-
-  rotate(newRot) {
-    this.rot = newRot;
   }
 
   reset() {
@@ -50,6 +44,21 @@ class Tetromino {
     for (const pos of this.getShape()) {
       tileAt(this.pos[0] + pos[0], this.pos[1] + pos[1]);
     }
+  }
+}
+
+class MoveableTetromino extends Tetromino {
+  constructor(index) {
+    super(index, [3, 0]);
+  }
+
+  move(dx, dy) {
+    this.pos[0] += dx;
+    this.pos[1] += dy;
+  }
+
+  rotate(newRot) {
+    this.rot = newRot;
   }
 
   drawGhost() {
@@ -136,6 +145,12 @@ class Tetromino {
   }
 }
 
+class StaticTetromino extends Tetromino {
+  constructor(index, displayPos) {
+    super(index, displayPos);
+  }
+}
+
 let gravityTime = 0;
 
 let currentPiece;
@@ -201,7 +216,7 @@ function resetGame() {
 
 function nextPiece() {
   next.push(nextBagIndex());
-  return new Tetromino(next.shift());
+  return new MoveableTetromino(next.shift());
 }
 
 function nextBagIndex() {
@@ -307,11 +322,11 @@ function safePlace(x, y) {
 
 function drawNext() {
   for (let i = 0; i < next.length; i++) {
-    fill(color(COLOURS[next[i]]));
-    for (const pos of SRS.pieces[next[i]][0]) {
-      const blockPos = [12 + pos[0], i * 4 + pos[1]];
-      tileAt(blockPos[0], blockPos[1]);
-    }
+    const nextPieceDisplay = new StaticTetromino(next[i], [
+      12 + NEXT_DISPLAY_POS_BASE[0],
+      i * 4 + NEXT_DISPLAY_POS_BASE[1],
+    ]);
+    nextPieceDisplay.draw();
   }
 }
 
@@ -319,7 +334,7 @@ function hold() {
   if (justHeld) return;
   if (held != null) {
     const t = currentPiece.index;
-    currentPiece = new Tetromino(held);
+    currentPiece = new MoveableTetromino(held);
     held = t;
   } else {
     held = currentPiece.index;
@@ -331,13 +346,17 @@ function hold() {
 function drawHeld() {
   if (held == null) return;
 
+  const heldPieceDisplay = new StaticTetromino(held, HELD_DISPLAY_POS);
+
   if (justHeld) {
     fill(color(20));
+    for (const pos of heldPieceDisplay.getShape()) {
+      tileAt(
+        heldPieceDisplay.pos[0] + pos[0],
+        heldPieceDisplay.pos[1] + pos[1],
+      );
+    }
   } else {
-    fill(color(COLOURS[held]));
-  }
-  for (const pos of SRS.pieces[held][0]) {
-    const blockPos = [pos[0] - 5, pos[1]];
-    tileAt(blockPos[0], blockPos[1]);
+    heldPieceDisplay.draw();
   }
 }
