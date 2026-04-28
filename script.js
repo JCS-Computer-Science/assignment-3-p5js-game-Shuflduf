@@ -323,7 +323,8 @@ const shuffle = (array) => {
 function draw() {
   clear();
   drawBoard();
-  gravityTime += deltaTime;
+  const gravityMultiplier = currentPiece.rawInputs.softDrop ? 4 : 1;
+  gravityTime += deltaTime * gravityMultiplier;
   if (gravityTime > GRAVITY_TIME) {
     const moved = currentPiece.tryMove(0, 1);
     if (!moved) {
